@@ -10,7 +10,7 @@ config = {
     'url': 'https://github.com/usc-isi-i2/dig-extractor',
     'download_url': 'https://github.com/usc-isi-i2/dig-extractor',
     'author_email': 'jasonslepicka@gmail.com',
-    'version': '0.1.6',
+    'version': '0.1.7',
     # these are the subdirs of the current directory that we care about
     'packages': ['digExtractor'],
     'scripts': [],
