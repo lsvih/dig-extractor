@@ -11,7 +11,7 @@ class Extractor:
 	def set_metadata():
 		raise NotImplementedError( "Need to implement set_metadata function" )
 
-	def get_renamed_input_fields(self, renamed_input_fields):
+	def get_renamed_input_fields(self):
 		raise NotImplementedError( "Need to implement get_renamed_input_fields function" )
 
 	def set_renamed_input_fields(self, renamed_input_fields):
