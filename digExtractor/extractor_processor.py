@@ -32,20 +32,14 @@ class ExtractorProcessor:
         self.extractor = extractor
         return self
 
-    def extract(self, doc):
-        if isinstance(self.jsonpaths, JSONPath):
-            renamed_inputs = dict()
-            renamed_inputs[self.extractor.get_renamed_input_fields()] = [match.value for match in self.jsonpaths.find(doc)][0]
-            
-        elif isinstance(self.jsonpaths, types.ListType):
-            renamed_inputs = dict()
-            for jsonpath, renamed_input in itertools.izip(iter(self.jsonpaths), iter(self.extractor.get_renamed_input_fields())):
-                renamed_inputs[renamed_input] = [match.value for match in jsonpath.find(doc)][0]
-            
-        else :
-            raise ValueError("input_fields must be a string or a list")
+
+
+    def extractFromRenamedInputs(self, doc, renamed_inputs):
+        extracted_value = self.extractor.extract(renamed_inputs)
+        if not extracted_value:
+            return doc
         metadata = self.extractor.get_metadata()
-        metadata['value'] = self.extractor.extract(renamed_inputs)
+        metadata['value'] = extracted_value
         metadata['source'] = self.input_fields
         if self.output_field in doc:
             output = doc[self.output_field]
@@ -57,5 +51,36 @@ class ExtractorProcessor:
         else:
             output = metadata
         doc[self.output_field] = output
+
+    def addTupleToDict(self, a, b):
+        a[b[0]] = b[1]
+        return a
+
+
+    def extract(self, doc):
+        if isinstance(self.jsonpaths, JSONPath):
+            renamed_inputs = dict()
+            for value in [match.value for match in self.jsonpaths.find(doc)]:
+                 renamed_inputs[self.extractor.get_renamed_input_fields()] = value
+                 self.extractFromRenamedInputs(doc, renamed_inputs)
+            
+        elif isinstance(self.jsonpaths, types.ListType):
+            
+            renamed_inputs_lists = dict()
+            for jsonpath, renamed_input in itertools.izip(iter(self.jsonpaths), iter(self.extractor.get_renamed_input_fields())):
+                renamed_inputs_lists[renamed_input] = [match.value for match in jsonpath.find(doc)]
+
+
+            renamed_inputs_lists_lists = [[(x,z) for z in y]for x,y in renamed_inputs_lists.iteritems()]
+            for i in itertools.product(*renamed_inputs_lists_lists):
+                renamed_inputs = reduce(self.addTupleToDict, i, dict())
+                self.extractFromRenamedInputs(doc, renamed_inputs)
+        else :
+            raise ValueError("input_fields must be a string or a list")
+        
+
         return doc
+
+
+
 
