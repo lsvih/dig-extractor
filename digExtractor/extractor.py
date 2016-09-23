@@ -1,11 +1,21 @@
-from curry import curry
-import itertools
 
-@curry
-def extract(doc, output_field, input_fields, renamed_input_fields, extractor):
-	inputs = dict(filter(lambda i:i[0] in input_fields, doc.iteritems()))
-	renamed_inputs = dict()
-	for input, renamed_input in itertools.izip(iter(input_fields), iter(renamed_input_fields)):
-		renamed_inputs[renamed_input] = inputs[input]
-	doc[output_field] = extractor(renamed_inputs)
-	return doc
+class Extractor:
+
+	def extract(doc):
+		raise NotImplementedError( "Need to implement extract function" )
+
+	# should create a new dictionary each time
+	def get_metadata():
+		raise NotImplementedError( "Need to implement get_metadata function" )
+
+	def set_metadata():
+		raise NotImplementedError( "Need to implement set_metadata function" )
+
+	def get_renamed_input_fields(self, renamed_input_fields):
+		raise NotImplementedError( "Need to implement get_renamed_input_fields function" )
+
+	def set_renamed_input_fields(self, renamed_input_fields):
+		if not (isinstance(renamed_input_fields, basestring) or isinstance(renamed_input_fields, types.ListType)):
+			raise ValueError("renamed_input_fields must be a string or a list")
+		self.renamed_input_fields = renamed_input_fields
+		return self	
