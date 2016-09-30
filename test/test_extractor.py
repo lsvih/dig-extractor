@@ -1,5 +1,4 @@
 import unittest
-import pygtrie as trie
 from digExtractor.extractor import Extractor
 from digExtractor.extractor_processor import ExtractorProcessor
 from digExtractor.extractor_processor_chain import execute_processor_chain
@@ -56,6 +55,14 @@ class TestExtractor(unittest.TestCase):
 
         self.assertTrue('e' not in updated_doc)
         self.assertEqual(updated_doc['b'], 'world')
+
+    def test_nested_field_filtered_extractor(self):
+        doc = { 'a':[{'b': 'world', 'c': 'good'}, {'b': 'cup', 'c': 'bad'}]}
+        e = SampleSingleRenamedFieldExtractor()
+        ep = ExtractorProcessor().set_input_fields('a[?c=good].b').set_output_field('e').set_extractor(e)
+        updated_doc = ep.extract(doc)
+
+        self.assertEqual(updated_doc['e']['value'], 'world')
 
     def test_multiple_renamed_field_extractor(self):
         doc = { 'a': 'hello', 'b': 'world'}

@@ -1,7 +1,8 @@
 import itertools
 import types
-from jsonpath_rw import jsonpath, parse
+from jsonpath_rw import jsonpath
 from jsonpath_rw.jsonpath import JSONPath
+from jsonpath_rw_ext import parse
 
 
 class ExtractorProcessor:
