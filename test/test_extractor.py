@@ -43,7 +43,7 @@ class TestExtractor(unittest.TestCase):
         ep = ExtractorProcessor().set_input_fields('a').set_output_field('e').set_extractor(e)
         updated_doc = ep.extract(doc)
 
-        self.assertEqual(updated_doc['e']['value'], 'hello')
+        self.assertEqual(updated_doc['e'][0]['value'], 'hello')
         self.assertEqual(updated_doc['a'], 'hello')
         self.assertEqual(updated_doc['b'], 'world')
 
@@ -62,7 +62,7 @@ class TestExtractor(unittest.TestCase):
         ep = ExtractorProcessor().set_input_fields('a[?c=good].b').set_output_field('e').set_extractor(e)
         updated_doc = ep.extract(doc)
 
-        self.assertEqual(updated_doc['e']['value'], 'world')
+        self.assertEqual(updated_doc['e'][0]['value'], 'world')
 
     def test_multiple_renamed_field_extractor(self):
         doc = { 'a': 'hello', 'b': 'world'}
@@ -70,7 +70,7 @@ class TestExtractor(unittest.TestCase):
         ep = ExtractorProcessor().set_input_fields(['a','b']).set_output_field('e').set_extractor(e)
         updated_doc = ep.extract(doc)
 
-        self.assertEqual(updated_doc['e']['value'], 'helloworld')
+        self.assertEqual(updated_doc['e'][0]['value'], 'helloworld')
         self.assertEqual(updated_doc['a'], 'hello')
         self.assertEqual(updated_doc['b'], 'world')
 
@@ -100,10 +100,28 @@ class TestExtractor(unittest.TestCase):
         self.assertEqual(updated_doc['e'][0]['value'], 'hello')
         self.assertEqual(updated_doc['e'][1]['value'], 'helloworld')
         self.assertEqual(updated_doc['e'][2]['value'], 'helloworld')
-        self.assertEqual(updated_doc['f']['value'], 'helloworld')
+        self.assertEqual(updated_doc['f'][0]['value'], 'helloworld')
         self.assertEqual(updated_doc['a'], 'hello')
         self.assertEqual(updated_doc['b'], 'world')
 
+    def test_chained_extractor_by_processor_inputs(self):
+        
+        e1 = SampleSingleRenamedFieldExtractor()
+        e2 = SampleMultipleRenamedFieldExtractor()
+        e3 = SampleMultipleRenamedFieldExtractor()
+        ep1 = ExtractorProcessor().set_input_fields('a').set_output_field('e').set_extractor(e1)
+        ep2 = ExtractorProcessor().set_input_fields('b').set_output_field('f').set_extractor(e1)
+        ep3 = ExtractorProcessor().set_extractor_processor_inputs(ep2).set_output_field('g').set_extractor(e1)
+        ep4 = ExtractorProcessor().set_extractor_processor_inputs([ep1,ep2]).set_output_field('h').set_extractor(e2)
+        doc = { 'a': 'hello', 'b': 'world'}
+        updated_doc = execute_processor_chain(doc, [ep1, ep2, ep3, ep4])
+        
+        self.assertEqual(updated_doc['e'][0]['value'], 'hello')
+        self.assertEqual(updated_doc['f'][0]['value'], 'world')
+        self.assertEqual(updated_doc['g'][0]['value'], 'world')
+        self.assertEqual(updated_doc['h'][0]['value'], 'helloworld')
+        self.assertEqual(updated_doc['a'], 'hello')
+        self.assertEqual(updated_doc['b'], 'world')
 
 if __name__ == '__main__':
     unittest.main()
