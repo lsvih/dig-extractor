@@ -1,5 +1,6 @@
 import itertools
 import types
+import re
 from jsonpath_rw.jsonpath import JSONPath
 from jsonpath_rw_ext import parse
 
@@ -11,10 +12,25 @@ class ExtractorProcessor(object):
         self.input_fields = None
         self.jsonpaths = None
         self.extractor = None
+        self.name = None
+
+    def set_name(self, name):
+        self.name = name
+        return self
+
+    def get_name(self):
+        return self.name
 
     def set_output_field(self, output_field):
         self.output_field = output_field
         return self
+
+    @staticmethod
+    def get_jp(extractor_processor):
+        if extractor_processor.get_output_jsonpath_with_name() is not None:
+            return extractor_processor.get_output_jsonpath_with_name()
+        else:
+            return extractor_processor.get_output_jsonpath()
 
     def set_extractor_processor_inputs(self, extractor_processors):
         if not (isinstance(extractor_processors, ExtractorProcessor) or
@@ -24,20 +40,30 @@ class ExtractorProcessor(object):
 
         if isinstance(extractor_processors, ExtractorProcessor):
             extractor_processor = extractor_processors
-            self.input_fields = extractor_processor.get_output_jsonpath()
+            self.input_fields = ExtractorProcessor.get_jp(extractor_processor)
+            
         elif isinstance(extractor_processors, types.ListType):
             self.input_fields = list()
             for extractor_processor in extractor_processors:
                 self.input_fields.append(
-                    extractor_processor.get_output_jsonpath())
+                    ExtractorProcessor.get_jp(extractor_processor))
 
         self.generate_json_paths()
         return self
 
+    def get_output_jsonpath_with_name(self):
+        if self.name is None:
+            return None
+        extractor_filter = "name='{}'".format(self.name)
+        output_jsonpath = "{}[?{}].value".format(\
+            self.output_field, extractor_filter)
+
+        return output_jsonpath
+
     def get_output_jsonpath(self):
         #metadata = self.extractor.get_metadata()
         metadata = dict()
-        metadata['source'] = self.input_fields
+        metadata['source'] = str(self.input_fields)
         extractor_filter = ""
         is_first = True
         for key, value in metadata.iteritems():
@@ -46,8 +72,13 @@ class ExtractorProcessor(object):
             else:
                 extractor_filter = extractor_filter + " & "
 
-            extractor_filter = extractor_filter\
-                + "{}=\"{}\"".format(key, value)
+            if isinstance(value, basestring):
+                extractor_filter = extractor_filter\
+                    + "{}=\"{}\"".format(key, re.sub('(?<=[^\\\])\"', "'", value))
+                
+            elif isinstance(value, types.ListType):
+                extractor_filter = extractor_filter\
+                    + "{}={}".format(key, str(value))
         output_jsonpath = "{}[?{}].value".format(
             self.output_field, extractor_filter)
 
@@ -63,7 +94,11 @@ class ExtractorProcessor(object):
 
     def generate_json_paths(self):
         if isinstance(self.input_fields, basestring):
-            self.jsonpaths = parse(self.input_fields)
+            try:
+                self.jsonpaths = parse(self.input_fields)
+            except Exception as e:
+                print "input_fields failed {}".format(self.input_fields)
+                raise e
 
         elif isinstance(self.input_fields, types.ListType):
             self.jsonpaths = list()
@@ -80,7 +115,10 @@ class ExtractorProcessor(object):
             return doc
         metadata = self.extractor.get_metadata()
         metadata['value'] = extracted_value
-        metadata['source'] = self.input_fields
+        metadata['source'] = str(self.input_fields)
+        if self.name is not None:
+            metadata['name'] = self.name
+
         if self.output_field in doc:
             output = doc[self.output_field]
             if isinstance(output, dict):

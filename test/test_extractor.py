@@ -1,4 +1,5 @@
 import unittest
+
 from digExtractor.extractor import Extractor
 from digExtractor.extractor_processor import ExtractorProcessor
 from digExtractor.extractor_processor_chain import execute_processor_chain
@@ -111,15 +112,21 @@ class TestExtractor(unittest.TestCase):
         e3 = SampleMultipleRenamedFieldExtractor()
         ep1 = ExtractorProcessor().set_input_fields('a').set_output_field('e').set_extractor(e1)
         ep2 = ExtractorProcessor().set_input_fields('b').set_output_field('f').set_extractor(e1)
-        ep3 = ExtractorProcessor().set_extractor_processor_inputs(ep2).set_output_field('g').set_extractor(e1)
-        ep4 = ExtractorProcessor().set_extractor_processor_inputs([ep1,ep2]).set_output_field('h').set_extractor(e2)
+        ep3 = ExtractorProcessor().set_extractor_processor_inputs(ep2).set_output_field('g').set_extractor(e1).set_name("first")
+        ep4 = ExtractorProcessor().set_extractor_processor_inputs([ep1,ep2]).set_output_field('h').set_extractor(e2).set_name("combine")
+        ep5 = ExtractorProcessor().set_extractor_processor_inputs(ep3).set_output_field('i').set_extractor(e1).set_name("second")
+        ep6 = ExtractorProcessor().set_extractor_processor_inputs(ep5).set_output_field('j').set_extractor(e1).set_name("third")
+        ep7 = ExtractorProcessor().set_extractor_processor_inputs(ep4).set_output_field('k').set_extractor(e1)
         doc = { 'a': 'hello', 'b': 'world'}
-        updated_doc = execute_processor_chain(doc, [ep1, ep2, ep3, ep4])
+        updated_doc = execute_processor_chain(doc, [ep1, ep2, ep3, ep4, ep5, ep6, ep7])
         
         self.assertEqual(updated_doc['e'][0]['value'], 'hello')
         self.assertEqual(updated_doc['f'][0]['value'], 'world')
         self.assertEqual(updated_doc['g'][0]['value'], 'world')
         self.assertEqual(updated_doc['h'][0]['value'], 'helloworld')
+        self.assertEqual(updated_doc['i'][0]['value'], 'world')
+        self.assertEqual(updated_doc['j'][0]['value'], 'world')
+        self.assertEqual(updated_doc['k'][0]['value'], 'helloworld')
         self.assertEqual(updated_doc['a'], 'hello')
         self.assertEqual(updated_doc['b'], 'world')
 
