@@ -158,7 +158,9 @@ class TestExtractor(unittest.TestCase):
         updated_doc = execute_processor_chain(doc, [ep1, ep2])
 
         self.assertEqual(updated_doc['h'][0]['value'], 'hello')
+        self.assertEqual(updated_doc['h'][0]['original_output_field'], 'f')
         self.assertEqual(updated_doc['i'][0]['value'], 'hello')
+        self.assertEqual(updated_doc['i'][0]['original_output_field'], 'g')
         self.assertEqual(updated_doc['j'][0]['value'], 'hello')
         self.assertEqual(updated_doc['a'], 'hello')
         self.assertEqual(updated_doc['b'], 'world')
