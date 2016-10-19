@@ -164,6 +164,8 @@ class ExtractorProcessor(object):
 
     def insert_extracted_value(self, doc, extracted_value, output_field):
         """inserts the extracted value into doc at the field specified by output_field"""
+        if not extracted_value:
+            return doc
         metadata = self.extractor.get_metadata()
 
         metadata['value'] = extracted_value
@@ -171,8 +173,8 @@ class ExtractorProcessor(object):
         if self.name is not None:
             metadata['name'] = self.name
 
-        if self.output_field in doc:
-            output = doc[self.output_field]
+        if output_field in doc:
+            output = doc[output_field]
             if isinstance(output, dict):
                 output = [output, metadata]
             elif isinstance(output, types.ListType):

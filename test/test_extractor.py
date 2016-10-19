@@ -177,5 +177,16 @@ class TestExtractor(unittest.TestCase):
         self.assertEqual(updated_doc['a'], 'hello')
         self.assertEqual(updated_doc['b'], 'world')
 
+    def test_single_renamed_field_multiple_outputs_empty_extractor(self):
+        doc = { 'a': '', 'b': 'world'}
+        e1 = SampleSingleRenamedFieldMultipleOutputsExtractor()
+        ep1 = ExtractorProcessor().set_input_fields('a').set_output_fields(['f', 'g']).set_extractor(e1).set_name("mo")
+        updated_doc = execute_processor_chain(doc, [ep1])
+
+        self.assertNotIn('f', updated_doc)
+        self.assertNotIn('g', updated_doc)
+        self.assertEqual(updated_doc['a'], '')
+        self.assertEqual(updated_doc['b'], 'world')
+
 if __name__ == '__main__':
     unittest.main()
