@@ -36,6 +36,25 @@ class SampleMultipleRenamedFieldExtractor(Extractor):
     def get_renamed_input_fields(self):
         return self.renamed_input_fields;
 
+class SampleSingleRenamedFieldMultipleOutputsExtractor(Extractor):
+
+    def __init__(self):
+        self.renamed_input_fields = 'c'
+
+    def extract(self, doc):
+        extracted = dict()
+        extracted['f'] = doc[self.renamed_input_fields]
+        extracted['g'] = doc[self.renamed_input_fields]
+        return extracted
+
+    def get_metadata(self):
+        metadata = dict()
+        metadata['extractor'] = "sample"
+        return metadata
+
+    def get_renamed_input_fields(self):
+        return self.renamed_input_fields;
+
 class TestExtractor(unittest.TestCase):
 
     def test_single_renamed_field_extractor(self):
@@ -127,6 +146,34 @@ class TestExtractor(unittest.TestCase):
         self.assertEqual(updated_doc['i'][0]['value'], 'world')
         self.assertEqual(updated_doc['j'][0]['value'], 'world')
         self.assertEqual(updated_doc['k'][0]['value'], 'helloworld')
+        self.assertEqual(updated_doc['a'], 'hello')
+        self.assertEqual(updated_doc['b'], 'world')
+
+    def test_single_renamed_field_multiple_outputs_dict_extractor(self):
+        doc = { 'a': 'hello', 'b': 'world'}
+        e1 = SampleSingleRenamedFieldMultipleOutputsExtractor()
+        e2 = SampleSingleRenamedFieldExtractor()
+        ep1 = ExtractorProcessor().set_input_fields('a').set_output_fields({'f':'h', 'g':'i'}).set_extractor(e1).set_name("mo")
+        ep2 = ExtractorProcessor().set_extractor_processor_inputs(ep1,'i').set_output_fields('j').set_extractor(e2).set_name("so")
+        updated_doc = execute_processor_chain(doc, [ep1, ep2])
+
+        self.assertEqual(updated_doc['h'][0]['value'], 'hello')
+        self.assertEqual(updated_doc['i'][0]['value'], 'hello')
+        self.assertEqual(updated_doc['j'][0]['value'], 'hello')
+        self.assertEqual(updated_doc['a'], 'hello')
+        self.assertEqual(updated_doc['b'], 'world')
+
+    def test_single_renamed_field_multiple_outputs_list_extractor(self):
+        doc = { 'a': 'hello', 'b': 'world'}
+        e1 = SampleSingleRenamedFieldMultipleOutputsExtractor()
+        e2 = SampleSingleRenamedFieldExtractor()
+        ep1 = ExtractorProcessor().set_input_fields('a').set_output_fields(['f', 'g']).set_extractor(e1).set_name("mo")
+        ep2 = ExtractorProcessor().set_extractor_processor_inputs(ep1,'f').set_output_fields('j').set_extractor(e2).set_name("so")
+        updated_doc = execute_processor_chain(doc, [ep1, ep2])
+
+        self.assertEqual(updated_doc['f'][0]['value'], 'hello')
+        self.assertEqual(updated_doc['g'][0]['value'], 'hello')
+        self.assertEqual(updated_doc['j'][0]['value'], 'hello')
         self.assertEqual(updated_doc['a'], 'hello')
         self.assertEqual(updated_doc['b'], 'world')
 

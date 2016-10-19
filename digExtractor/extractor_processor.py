@@ -17,6 +17,7 @@ class ExtractorProcessor(object):
 
     def __init__(self):
         self.output_field = None
+        self.output_fields = None
         self.input_fields = None
         self.jsonpaths = None
         self.extractor = None
@@ -36,16 +37,29 @@ class ExtractorProcessor(object):
         self.output_field = output_field
         return self
 
-    @staticmethod
-    def __get_jp(extractor_processor):
+    def set_output_fields(self, output_fields):
+        """Defines where to put the dictionary output of the extractor in the doc, but renames
+        the fields of the extracted output for the document or just filters the keys"""
+        if isinstance(output_fields, dict) or isinstance(output_fields, list):
+            self.output_fields = output_fields
+        elif isinstance(output_fields, basestring):
+            self.output_field = output_fields
+        else:
+            raise ValueError("set_output_fields requires a dictionary of "\
+                +"output fields to remap, a list of keys to filter, or a scalar string")
+        return self
+
+    def __get_jp(self, extractor_processor, sub_output=None):
         """Tries to get name from ExtractorProcessor to filter on first.
         Otherwise falls back to filtering based on its metadata"""
-        if extractor_processor.get_output_jsonpath_with_name() is not None:
-            return extractor_processor.get_output_jsonpath_with_name()
+        if sub_output is None and extractor_processor.output_field is None:
+            raise ValueError("ExtractorProcessors input paths cannot be unioned across fields.  Please specify either a sub_output or use a single scalar output_field")
+        if extractor_processor.get_output_jsonpath_with_name(sub_output) is not None:
+            return extractor_processor.get_output_jsonpath_with_name(sub_output)
         else:
-            return extractor_processor.get_output_jsonpath()
+            return extractor_processor.get_output_jsonpath(sub_output)
 
-    def set_extractor_processor_inputs(self, extractor_processors):
+    def set_extractor_processor_inputs(self, extractor_processors, sub_output=None):
         """Instead of specifying fields in the source document to rename
         for the extractor, allows the user to specify ExtractorProcessors that
         are executed earlier in the chain and generate json paths from
@@ -57,30 +71,46 @@ class ExtractorProcessor(object):
 
         if isinstance(extractor_processors, ExtractorProcessor):
             extractor_processor = extractor_processors
-            self.input_fields = ExtractorProcessor.__get_jp(extractor_processor)
+            self.input_fields = self.__get_jp(extractor_processor, sub_output)
         elif isinstance(extractor_processors, types.ListType):
             self.input_fields = list()
             for extractor_processor in extractor_processors:
                 self.input_fields.append(
-                    ExtractorProcessor.__get_jp(extractor_processor))
+                    self.__get_jp(extractor_processor, sub_output))
 
         self.generate_json_paths()
         return self
 
-    def get_output_jsonpath_with_name(self):
+    def get_output_jsonpath_field(self, sub_output=None):
+        """attempts to create an output jsonpath from a particular ouput field"""
+        if sub_output is not None:
+            if self.output_fields is None or\
+                (isinstance(self.output_fields, dict) and not sub_output in self.output_fields.itervalues()) or\
+                (isinstance(self.output_fields, list) and not sub_output in self.output_fields):
+                raise ValueError("Cannot generate output jsonpath because this ExtractorProcessor will not output {}".format(sub_output))
+            output_jsonpath_field = sub_output
+        else:
+            output_jsonpath_field = self.output_field
+        return output_jsonpath_field
+
+    def get_output_jsonpath_with_name(self, sub_output=None):
         """If ExtractorProcessor has a name defined, return
         a JSONPath that has a filter on that name"""
         if self.name is None:
             return None
+
+        output_jsonpath_field = self.get_output_jsonpath_field(sub_output)
         extractor_filter = "name='{}'".format(self.name)
         output_jsonpath = "{}[?{}].value".format(\
-            self.output_field, extractor_filter)
+            output_jsonpath_field, extractor_filter)
 
         return output_jsonpath
 
-    def get_output_jsonpath(self):
+    def get_output_jsonpath(self, sub_output=None):
         """Attempt to build a JSONPath filter for this ExtractorProcessor
         that captures how to get at the outputs of the wrapped Extractor"""
+        output_jsonpath_field = self.get_output_jsonpath_field(sub_output)
+
         metadata = self.extractor.get_metadata()
         metadata['source'] = str(self.input_fields)
         extractor_filter = ""
@@ -98,7 +128,7 @@ class ExtractorProcessor(object):
                 extractor_filter = extractor_filter\
                     + "{}={}".format(key, str(value))
         output_jsonpath = "{}[?{}].value".format(
-            self.output_field, extractor_filter)
+            output_jsonpath_field, extractor_filter)
 
         return output_jsonpath
 
@@ -132,14 +162,10 @@ class ExtractorProcessor(object):
         self.extractor = extractor
         return self
 
-    def extract_from_renamed_inputs(self, doc, renamed_inputs):
-        """Apply the extractor to a document containing the renamed_inputs
-        and insert the resulting value if defined in the value field
-        of a copy of the extractor's metadata and insert that into the doc"""
-        extracted_value = self.extractor.extract(renamed_inputs)
-        if not extracted_value:
-            return doc
+    def insert_extracted_value(self, doc, extracted_value, output_field):
+        """inserts the extracted value into doc at the field specified by output_field"""
         metadata = self.extractor.get_metadata()
+
         metadata['value'] = extracted_value
         metadata['source'] = str(self.input_fields)
         if self.name is not None:
@@ -154,7 +180,29 @@ class ExtractorProcessor(object):
 
         else:
             output = [metadata]
-        doc[self.output_field] = output
+        doc[output_field] = output
+
+    def extract_from_renamed_inputs(self, doc, renamed_inputs):
+        """Apply the extractor to a document containing the renamed_inputs
+        and insert the resulting value if defined in the value field
+        of a copy of the extractor's metadata and insert that into the doc"""
+        extracted_value = self.extractor.extract(renamed_inputs)
+        if not extracted_value:
+            return doc
+
+        if self.output_fields is not None and isinstance(extracted_value, dict):
+            if isinstance(self.output_fields, list):
+                for field in self.output_fields:
+                    if field in extracted_value:
+                        self.insert_extracted_value(doc, extracted_value[field], field)
+            elif isinstance(self.output_fields, dict):
+                for key, value in self.output_fields.iteritems():
+                    if key in extracted_value:
+                        self.insert_extracted_value(doc, extracted_value[key], value)
+        else:
+            self.insert_extracted_value(doc, extracted_value, self.output_field)
+
+
 
     @staticmethod
     def add_tuple_to_doc(doc, tup):
