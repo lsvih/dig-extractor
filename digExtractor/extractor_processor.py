@@ -101,7 +101,7 @@ class ExtractorProcessor(object):
 
         output_jsonpath_field = self.get_output_jsonpath_field(sub_output)
         extractor_filter = "name='{}'".format(self.name)
-        output_jsonpath = "{}[?{}].value".format(\
+        output_jsonpath = "{}[?{}].result.value".format(\
             output_jsonpath_field, extractor_filter)
 
         return output_jsonpath
@@ -127,7 +127,7 @@ class ExtractorProcessor(object):
             elif isinstance(value, types.ListType):
                 extractor_filter = extractor_filter\
                     + "{}={}".format(key, str(value))
-        output_jsonpath = "{}[?{}].value".format(
+        output_jsonpath = "{}[?{}].result.value".format(
             output_jsonpath_field, extractor_filter)
 
         return output_jsonpath
@@ -169,8 +169,16 @@ class ExtractorProcessor(object):
         if not extracted_value:
             return doc
         metadata = self.extractor.get_metadata()
-
-        metadata['value'] = extracted_value
+        if not self.extractor.get_include_context():
+            if isinstance(extracted_value, list):
+                result = list()
+                for ev in extracted_value:
+                    result.append({'value': ev})
+            else:
+                result = {'value': extracted_value}
+        else:
+            result = extracted_value
+        metadata['result'] = result
         metadata['source'] = str(self.input_fields)
 
         if original_output_field is not None:
