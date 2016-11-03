@@ -53,7 +53,7 @@ class Extractor(object):
 
     def wrap_value_with_context(self, value, field, start, end):
         return {'value': value,
-                'context': {'field': 'c',
+                'context': {'field': field,
                             'start': start,
                             'end': end
                             }
