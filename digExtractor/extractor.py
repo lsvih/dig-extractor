@@ -44,6 +44,7 @@ class Extractor(object):
 
     def set_include_context(self, include_context):
         self.include_context = include_context
+        return self
 
     def get_include_context(self):
         if not hasattr(self, "include_context"):
