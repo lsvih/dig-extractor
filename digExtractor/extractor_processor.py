@@ -101,7 +101,7 @@ class ExtractorProcessor(object):
 
         output_jsonpath_field = self.get_output_jsonpath_field(sub_output)
         extractor_filter = "name='{}'".format(self.name)
-        output_jsonpath = "{}[?{}].result.value".format(\
+        output_jsonpath = "{}[?{}].(result[*][value])|(result[value])".format(\
             output_jsonpath_field, extractor_filter)
 
         return output_jsonpath

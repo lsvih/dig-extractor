@@ -285,6 +285,13 @@ class TestExtractor(unittest.TestCase):
         self.assertEqual(updated_doc['a'], '')
         self.assertEqual(updated_doc['b'], ['borscht', 'Bourne', 'barn', 'Block'])
 
+        e2 = SampleSingleRenamedFieldExtractor()
+        ep2 = ExtractorProcessor().set_extractor_processor_inputs(ep1)\
+                                  .set_output_fields('g')\
+                                  .set_extractor(e2).set_name("no")
+        updated_doc2 = execute_processor_chain(updated_doc, [ep2])
+        self.assertEqual(updated_doc['g'][0]['result']['value'], 'Bourne')
+
 
 if __name__ == '__main__':
     unittest.main()
