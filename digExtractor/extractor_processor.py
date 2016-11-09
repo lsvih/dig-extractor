@@ -231,11 +231,14 @@ class ExtractorProcessor(object):
         insert them into a document with renamed field(s) then
         apply the Extractor and return the doc with the extracted values  """
         if isinstance(self.jsonpaths, JSONPath):
+            input_field = self.extractor.get_renamed_input_fields()
+            if isinstance(self.extractor.get_renamed_input_fields(), list):
+                input_field = input_field[0]
+
             jsonpath = self.jsonpaths
             renamed_inputs = dict()
             for value in [match.value for match in jsonpath.find(doc)]:
-                renamed_inputs[
-                    self.extractor.get_renamed_input_fields()] = value
+                renamed_inputs[input_field] = value
                 self.extract_from_renamed_inputs(doc, renamed_inputs)
 
         elif isinstance(self.jsonpaths, types.ListType):

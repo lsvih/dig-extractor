@@ -8,7 +8,7 @@ from digExtractor.extractor_processor_chain import execute_processor_chain
 class SampleContextExtractor(Extractor):
     def __init__(self):
         super(SampleContextExtractor, self).__init__()
-        self.renamed_input_fields = 'c'
+        self.renamed_input_fields = ['c']
         self.include_context = True
 
     def extract(self, doc):
