@@ -156,6 +156,8 @@ class ExtractorProcessor(object):
             self.jsonpaths = list()
             for input_field in self.input_fields:
                 self.jsonpaths.append(parse(input_field))
+            if len(self.jsonpaths) == 1:
+                self.jsonpaths = self.jsonpaths[0]
 
     def set_extractor(self, extractor):
         """Set the Extractor for the ExtractorProcessor to wrap"""

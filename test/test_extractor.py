@@ -92,7 +92,7 @@ class TestExtractor(unittest.TestCase):
     def test_single_renamed_field_extractor(self):
         doc = {'a': 'hello', 'b': 'world'}
         e = SampleSingleRenamedFieldExtractor()
-        ep = ExtractorProcessor().set_input_fields('a')\
+        ep = ExtractorProcessor().set_input_fields(['a'])\
                                  .set_output_field('e')\
                                  .set_extractor(e)
         updated_doc = ep.extract(doc)
