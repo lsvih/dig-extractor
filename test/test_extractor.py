@@ -30,6 +30,24 @@ class SampleContextExtractor(Extractor):
         return self.renamed_input_fields
 
 
+class SampleSingleRenamedFieldExtractorArrayConverter(Extractor):
+
+    def __init__(self):
+        super(SampleSingleRenamedFieldExtractorArrayConverter, self).__init__()
+        self.renamed_input_fields = 'c'
+
+    def extract(self, doc):
+        return [['a', 'b']]
+
+    def get_metadata(self):
+        metadata = dict()
+        metadata['extractor'] = "sample"
+        return metadata
+
+    def get_renamed_input_fields(self):
+        return self.renamed_input_fields
+
+
 class SampleSingleRenamedFieldExtractor(Extractor):
 
     def __init__(self):
@@ -285,12 +303,25 @@ class TestExtractor(unittest.TestCase):
         self.assertEqual(updated_doc['a'], '')
         self.assertEqual(updated_doc['b'], ['borscht', 'Bourne', 'barn', 'Block'])
 
-        e2 = SampleSingleRenamedFieldExtractor()
-        ep2 = ExtractorProcessor().set_extractor_processor_inputs(ep1)\
-                                  .set_output_fields('g')\
-                                  .set_extractor(e2).set_name("no")
-        updated_doc2 = execute_processor_chain(updated_doc, [ep2])
-        self.assertEqual(updated_doc['g'][0]['result']['value'], 'Bourne')
+
+
+    def test_array_extractor(self):
+        doc = { 'a': 'my name is foo', 'b': 'world'}
+        e = SampleSingleRenamedFieldExtractor()
+        ep = ExtractorProcessor().set_input_fields('a')\
+                                 .set_output_fields('g')\
+                                 .set_extractor(e).set_name("no")
+        updated_doc = ep.extract(doc)
+        e2 = SampleSingleRenamedFieldExtractorArrayConverter()
+        ep2 = ExtractorProcessor().set_extractor_processor_inputs(ep)\
+                                  .set_output_field('e')\
+                                  .set_extractor(e2)\
+                                  .set_name("oo")
+        updated_doc = ep2.extract(updated_doc)
+        ep3 = ExtractorProcessor().set_extractor_processor_inputs(ep)\
+                                 .set_output_fields('e')\
+                                 .set_extractor(e).set_name("po")
+        updated_doc = ep3.extract(doc)
 
 
 if __name__ == '__main__':
