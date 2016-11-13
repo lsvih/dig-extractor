@@ -323,6 +323,42 @@ class TestExtractor(unittest.TestCase):
                                  .set_extractor(e).set_name("po")
         updated_doc = ep3.extract(doc)
 
+    def test_single_renamed_field_nested_outputs_list_extractor(self):
+        doc = {'a': 'hello', 'b': 'world'}
+        e1 = SampleSingleRenamedFieldExtractor()
+        e2 = SampleSingleRenamedFieldExtractor()
+        ep1 = ExtractorProcessor().set_input_fields('a')\
+                                  .set_output_fields('f.a')\
+                                  .set_extractor(e1).set_name("mo")
+        ep2 = ExtractorProcessor().set_extractor_processor_inputs(ep1)\
+                                  .set_output_fields('j.a')\
+                                  .set_extractor(e2).set_name("so")
+        updated_doc = execute_processor_chain(doc, [ep1, ep2, ep1])
+
+        self.assertEqual(updated_doc['f']['a'][0]['result']['value'], 'hello')
+        self.assertEqual(updated_doc['f']['a'][1]['result']['value'], 'hello')
+        self.assertEqual(updated_doc['j']['a'][0]['result']['value'], 'hello')
+        self.assertEqual(updated_doc['a'], 'hello')
+        self.assertEqual(updated_doc['b'], 'world')
+
+    def test_single_renamed_field_multiple_nested_outputs_list_extractor(self):
+        doc = {'a': 'hello', 'b': 'world'}
+        e1 = SampleSingleRenamedFieldMultipleOutputsExtractor()
+        e2 = SampleSingleRenamedFieldExtractor()
+        ep1 = ExtractorProcessor().set_input_fields('a')\
+                                  .set_output_fields({'f':'f.a', 'g':'g.a'})\
+                                  .set_extractor(e1).set_name("mo")
+        ep2 = ExtractorProcessor().set_extractor_processor_inputs(ep1, 'f.a')\
+                                  .set_output_fields('j.a')\
+                                  .set_extractor(e2).set_name("so")
+        updated_doc = execute_processor_chain(doc, [ep1, ep2])
+
+        self.assertEqual(updated_doc['f']['a'][0]['result']['value'], 'hello')
+        self.assertEqual(updated_doc['g']['a'][0]['result']['value'], 'hello')
+        self.assertEqual(updated_doc['j']['a'][0]['result']['value'], 'hello')
+        self.assertEqual(updated_doc['a'], 'hello')
+        self.assertEqual(updated_doc['b'], 'world')
+
 
 if __name__ == '__main__':
     unittest.main()

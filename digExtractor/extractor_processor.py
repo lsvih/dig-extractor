@@ -189,8 +189,15 @@ class ExtractorProcessor(object):
         if self.name is not None:
             metadata['name'] = self.name
 
-        if output_field in doc:
-            output = doc[output_field]
+        field_elements = output_field.split('.')
+        while len(field_elements) > 1:
+            field_element = field_elements.pop(0)
+            if field_element not in doc:
+                doc[field_element] = {}
+            doc = doc[field_element]
+        field_element = field_elements[0]
+        if field_element in doc:
+            output = doc[field_element]
             if isinstance(output, dict):
                 output = [output, metadata]
             elif isinstance(output, types.ListType):
@@ -198,7 +205,7 @@ class ExtractorProcessor(object):
 
         else:
             output = [metadata]
-        doc[output_field] = output
+        doc[field_element] = output
 
     def extract_from_renamed_inputs(self, doc, renamed_inputs):
         """Apply the extractor to a document containing the renamed_inputs
