@@ -22,6 +22,11 @@ class ExtractorProcessor(object):
         self.jsonpaths = None
         self.extractor = None
         self.name = None
+        self.flat_map_inputs = False
+
+    def set_flat_map_inputs(self, flat_map_inputs):
+        self.flat_map_inputs = flat_map_inputs
+        return self
 
     def set_name(self, name):
         """Sets a name for the ExtractorProcessor"""
@@ -45,15 +50,16 @@ class ExtractorProcessor(object):
         elif isinstance(output_fields, basestring):
             self.output_field = output_fields
         else:
-            raise ValueError("set_output_fields requires a dictionary of "\
-                +"output fields to remap, a list of keys to filter, or a scalar string")
+            raise ValueError("set_output_fields requires a dictionary of "
+                             + "output fields to remap, a list of keys to filter, or a scalar string")
         return self
 
     def __get_jp(self, extractor_processor, sub_output=None):
         """Tries to get name from ExtractorProcessor to filter on first.
         Otherwise falls back to filtering based on its metadata"""
         if sub_output is None and extractor_processor.output_field is None:
-            raise ValueError("ExtractorProcessors input paths cannot be unioned across fields.  Please specify either a sub_output or use a single scalar output_field")
+            raise ValueError(
+                "ExtractorProcessors input paths cannot be unioned across fields.  Please specify either a sub_output or use a single scalar output_field")
         if extractor_processor.get_output_jsonpath_with_name(sub_output) is not None:
             return extractor_processor.get_output_jsonpath_with_name(sub_output)
         else:
@@ -86,8 +92,9 @@ class ExtractorProcessor(object):
         if sub_output is not None:
             if self.output_fields is None or\
                 (isinstance(self.output_fields, dict) and not sub_output in self.output_fields.itervalues()) or\
-                (isinstance(self.output_fields, list) and not sub_output in self.output_fields):
-                raise ValueError("Cannot generate output jsonpath because this ExtractorProcessor will not output {}".format(sub_output))
+                    (isinstance(self.output_fields, list) and not sub_output in self.output_fields):
+                raise ValueError(
+                    "Cannot generate output jsonpath because this ExtractorProcessor will not output {}".format(sub_output))
             output_jsonpath_field = sub_output
         else:
             output_jsonpath_field = self.output_field
@@ -101,7 +108,7 @@ class ExtractorProcessor(object):
 
         output_jsonpath_field = self.get_output_jsonpath_field(sub_output)
         extractor_filter = "name='{}'".format(self.name)
-        output_jsonpath = "{}[?{}].(result[*][value])".format(\
+        output_jsonpath = "{}[?{}].(result[*][value])".format(
             output_jsonpath_field, extractor_filter)
 
         return output_jsonpath
@@ -123,7 +130,8 @@ class ExtractorProcessor(object):
 
             if isinstance(value, basestring):
                 extractor_filter = extractor_filter\
-                    + "{}=\"{}\"".format(key, re.sub('(?<=[^\\\])\"', "'", value))
+                    + "{}=\"{}\"".format(key,
+                                         re.sub('(?<=[^\\\])\"', "'", value))
             elif isinstance(value, types.ListType):
                 extractor_filter = extractor_filter\
                     + "{}={}".format(key, str(value))
@@ -219,15 +227,16 @@ class ExtractorProcessor(object):
             if isinstance(self.output_fields, list):
                 for field in self.output_fields:
                     if field in extracted_value:
-                        self.insert_extracted_value(doc, extracted_value[field], field)
+                        self.insert_extracted_value(
+                            doc, extracted_value[field], field)
             elif isinstance(self.output_fields, dict):
                 for key, value in self.output_fields.iteritems():
                     if key in extracted_value:
-                        self.insert_extracted_value(doc, extracted_value[key], value, key)
+                        self.insert_extracted_value(
+                            doc, extracted_value[key], value, key)
         else:
-            self.insert_extracted_value(doc, extracted_value, self.output_field)
-
-
+            self.insert_extracted_value(
+                doc, extracted_value, self.output_field)
 
     @staticmethod
     def add_tuple_to_doc(doc, tup):
@@ -246,26 +255,51 @@ class ExtractorProcessor(object):
 
             jsonpath = self.jsonpaths
             renamed_inputs = dict()
-            for value in [match.value for match in jsonpath.find(doc)]:
-                renamed_inputs[input_field] = value
-                self.extract_from_renamed_inputs(doc, renamed_inputs)
+            if self.flat_map_inputs:
+                flat_mapped = itertools.chain.from_iterable(
+                    [iter(match.value)
+                     if hasattr(match.value, '__iter__') and
+                     not isinstance(match.value, dict)
+                     else iter(list(match.value))
+                     for match in jsonpath.find(doc)])
+                renamed_inputs[input_field] = flat_mapped
+                if input_field in renamed_inputs:
+                    self.extract_from_renamed_inputs(doc, renamed_inputs)
+
+            else:
+                for value in [match.value for match in jsonpath.find(doc)]:
+                    renamed_inputs[input_field] = value
+                    self.extract_from_renamed_inputs(doc, renamed_inputs)
 
         elif isinstance(self.jsonpaths, types.ListType):
 
             renamed_inputs_lists = dict()
             for jsonpath, renamed_input in \
-                    itertools.izip(\
-                    iter(self.jsonpaths),\
+                    itertools.izip(
+                    iter(self.jsonpaths),
                     iter(self.extractor.get_renamed_input_fields())):
                 renamed_inputs_lists[renamed_input] = [
                     match.value for match in jsonpath.find(doc)]
 
-            renamed_inputs_lists_lists = [
-                [(x, z) for z in y]for x, y in renamed_inputs_lists.iteritems()]
-            for i in itertools.product(*renamed_inputs_lists_lists):
+            if self.flat_map_inputs:
+                renamed_inputs_tuple_lists = [
+                    (x, itertools.chain.from_iterable(
+                        [iter(z) if hasattr(z, '__iter__') and
+                         not isinstance(z, dict)
+                         else iter(list(z))for z in y]))
+                    for x, y in renamed_inputs_lists.iteritems()]
                 renamed_inputs = reduce(
-                    ExtractorProcessor.add_tuple_to_doc, i, dict())
+                    ExtractorProcessor.add_tuple_to_doc,
+                    renamed_inputs_tuple_lists, dict())
                 self.extract_from_renamed_inputs(doc, renamed_inputs)
+            else:
+                renamed_inputs_lists_lists = [[(x, z) for z in y]
+                                              for x, y in
+                                              renamed_inputs_lists.iteritems()]
+                for i in itertools.product(*renamed_inputs_lists_lists):
+                    renamed_inputs = reduce(
+                        ExtractorProcessor.add_tuple_to_doc, i, dict())
+                    self.extract_from_renamed_inputs(doc, renamed_inputs)
         else:
             raise ValueError("input_fields must be a string or a list")
 

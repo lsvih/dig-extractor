@@ -1,9 +1,45 @@
 import unittest
+import itertools
 
 from digExtractor.extractor import Extractor
 from digExtractor.extractor_processor import ExtractorProcessor
 from digExtractor.extractor_processor_chain import execute_processor_chain
 
+
+class SampleFlatMappedSingleRenamedFieldExtractor(Extractor):
+
+    def __init__(self):
+        super(SampleFlatMappedSingleRenamedFieldExtractor, self).__init__()
+        self.renamed_input_fields = 'c'
+
+    def extract(self, doc):
+        return reduce(lambda x, y: x + y, doc['c'])
+
+    def get_metadata(self):
+        metadata = dict()
+        metadata['extractor'] = "sample"
+        return metadata
+
+    def get_renamed_input_fields(self):
+        return self.renamed_input_fields
+
+
+class SampleFlatMappedMultipleRenamedFieldExtractor(Extractor):
+
+    def __init__(self):
+        super(SampleFlatMappedMultipleRenamedFieldExtractor, self).__init__()
+        self.renamed_input_fields = ['c', 'd']
+
+    def extract(self, doc):
+        return reduce(lambda x, y: x + y, itertools.chain(doc['c'], doc['d']))
+
+    def get_metadata(self):
+        metadata = dict()
+        metadata['extractor'] = "sample"
+        return metadata
+
+    def get_renamed_input_fields(self):
+        return self.renamed_input_fields
 
 class SampleContextExtractor(Extractor):
     def __init__(self):
@@ -358,6 +394,68 @@ class TestExtractor(unittest.TestCase):
         self.assertEqual(updated_doc['j']['a'][0]['result']['value'], 'hello')
         self.assertEqual(updated_doc['a'], 'hello')
         self.assertEqual(updated_doc['b'], 'world')
+
+    def test_single_input_matching_multiple_extractions(self):
+        doc = {'a': 'hello', 'b': 'world'}
+        e1 = SampleSingleRenamedFieldExtractor()
+        ep1 = ExtractorProcessor().set_input_fields('a')\
+                                  .set_output_fields('hp.word')\
+                                  .set_extractor(e1).set_name("h")
+        e2 = SampleFlatMappedSingleRenamedFieldExtractor()
+        ep2 = ExtractorProcessor().set_input_fields(['hp.word[*].result.value'])\
+                                  .set_output_fields('hhhhh.word')\
+                                  .set_extractor(e2).set_name("m")\
+                                  .set_flat_map_inputs(True)
+        updated_doc = execute_processor_chain(doc, [ep1, ep1, ep2])
+        self.assertEqual(updated_doc['hhhhh']['word'][0]['result']['value'],
+                         "hellohello")
+
+    def test_multiple_inputs_matching_multiple_extractions(self):
+        doc = {'a': 'hello', 'b': 'world'}
+        e1 = SampleSingleRenamedFieldExtractor()
+        ep1 = ExtractorProcessor().set_input_fields('a')\
+                                  .set_output_fields('hp.word')\
+                                  .set_extractor(e1).set_name("h")
+        ep2 = ExtractorProcessor().set_input_fields('b')\
+                                  .set_output_fields('hr.word')\
+                                  .set_extractor(e1).set_name("w")
+        e2 = SampleFlatMappedMultipleRenamedFieldExtractor()
+        ep3 = ExtractorProcessor().set_input_fields(['hp.word[*].result.value',
+                                                     'hr.word[*].result.value'])\
+                                  .set_output_fields('hhhhh.word')\
+                                  .set_extractor(e2).set_name("m")\
+                                  .set_flat_map_inputs(True)
+        updated_doc = execute_processor_chain(doc, [ep1, ep1, ep2, ep2, ep3])
+        self.assertEqual(updated_doc['hhhhh']['word'][0]['result']['value'],
+                         "hellohelloworldworld")
+
+    def test_multiple_list_inputs_matching_multiple_extractions(self):
+        doc = {'a': ['hello', 'goodbye'], 'b': ['world', 'cup']}
+        e1 = SampleSingleRenamedFieldExtractor()
+        ep1 = ExtractorProcessor().set_input_fields('a')\
+                                  .set_output_fields('hp.word')\
+                                  .set_extractor(e1).set_name("h")
+        ep2 = ExtractorProcessor().set_input_fields('b')\
+                                  .set_output_fields('hr.word')\
+                                  .set_extractor(e1).set_name("w")
+        e2 = SampleFlatMappedMultipleRenamedFieldExtractor()
+        ep3 = ExtractorProcessor().set_input_fields(['hp.word[*].result[*][value]',
+                                                     'hr.word[*].result[*][value]'])\
+                                  .set_output_fields('hhhhh.word')\
+                                  .set_extractor(e2).set_name("m")\
+                                  .set_flat_map_inputs(True)
+        ep4 = ExtractorProcessor().set_input_fields(['a',
+                                                     'b'])\
+                                  .set_output_fields('iiiii.word')\
+                                  .set_extractor(e2).set_name("m")\
+                                  .set_flat_map_inputs(True)
+        updated_doc = execute_processor_chain(doc, [ep1, ep1, ep2, ep2])
+        print updated_doc
+        updated_doc = execute_processor_chain(updated_doc, [ep3, ep4])
+        self.assertEqual(updated_doc['hhhhh']['word'][0]['result']['value'],
+                         "hellogoodbyehellogoodbyeworldcupworldcup")
+        self.assertEqual(updated_doc['iiiii']['word'][0]['result']['value'],
+                         "hellogoodbyeworldcup")
 
 
 if __name__ == '__main__':
