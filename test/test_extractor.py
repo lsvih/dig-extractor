@@ -450,7 +450,6 @@ class TestExtractor(unittest.TestCase):
                                   .set_extractor(e2).set_name("m")\
                                   .set_flat_map_inputs(True)
         updated_doc = execute_processor_chain(doc, [ep1, ep1, ep2, ep2])
-        print updated_doc
         updated_doc = execute_processor_chain(updated_doc, [ep3, ep4])
         self.assertEqual(updated_doc['hhhhh']['word'][0]['result']['value'],
                          "hellogoodbyehellogoodbyeworldcupworldcup")

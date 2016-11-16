@@ -244,6 +244,7 @@ class ExtractorProcessor(object):
         doc[tup[0]] = tup[1]
         return doc
 
+
     def extract(self, doc):
         """From the defined JSONPath(s), pull out the values and
         insert them into a document with renamed field(s) then
@@ -259,8 +260,9 @@ class ExtractorProcessor(object):
                 flat_mapped = itertools.chain.from_iterable(
                     [iter(match.value)
                      if hasattr(match.value, '__iter__') and
-                     not isinstance(match.value, dict)
-                     else iter(list(match.value))
+                     not isinstance(match.value, dict) and
+                     not isinstance(match.value, basestring)
+                     else iter([match.value])
                      for match in jsonpath.find(doc)])
                 renamed_inputs[input_field] = flat_mapped
                 if input_field in renamed_inputs:
@@ -285,8 +287,9 @@ class ExtractorProcessor(object):
                 renamed_inputs_tuple_lists = [
                     (x, itertools.chain.from_iterable(
                         [iter(z) if hasattr(z, '__iter__') and
-                         not isinstance(z, dict)
-                         else iter(list(z))for z in y]))
+                         not isinstance(z, dict) and
+                         not isinstance(z, basestring)
+                         else iter([z])for z in y]))
                     for x, y in renamed_inputs_lists.iteritems()]
                 renamed_inputs = reduce(
                     ExtractorProcessor.add_tuple_to_doc,
