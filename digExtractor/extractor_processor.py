@@ -65,7 +65,8 @@ class ExtractorProcessor(object):
         else:
             return extractor_processor.get_output_jsonpath(sub_output)
 
-    def set_extractor_processor_inputs(self, extractor_processors, sub_output=None):
+    def set_extractor_processor_inputs(self, extractor_processors,
+                                       sub_output=None):
         """Instead of specifying fields in the source document to rename
         for the extractor, allows the user to specify ExtractorProcessors that
         are executed earlier in the chain and generate json paths from
@@ -81,8 +82,14 @@ class ExtractorProcessor(object):
         elif isinstance(extractor_processors, types.ListType):
             self.input_fields = list()
             for extractor_processor in extractor_processors:
-                self.input_fields.append(
-                    self.__get_jp(extractor_processor, sub_output))
+                if isinstance(extractor_processor, ExtractorProcessor):
+                    self.input_fields.append(
+                        self.__get_jp(extractor_processor, sub_output))
+                elif isinstance(extractor_processor, list):
+                    self.input_fields.append(
+                        reduce(lambda a, b: "{}|{}".format(a, b),
+                               ["({})".format(self.__get_jp(x, sub_output))
+                                for x in extractor_processor]))
 
         self.generate_json_paths()
         return self
