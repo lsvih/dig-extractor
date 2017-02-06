@@ -207,9 +207,26 @@ class ExtractorProcessor(object):
         field_elements = output_field.split('.')
         while len(field_elements) > 1:
             field_element = field_elements.pop(0)
-            if field_element not in doc:
-                doc[field_element] = {}
-            doc = doc[field_element]
+            if '[' in field_element:
+                if not field_element.startswith('['):
+                    array_field_elements = field_element.split('[', 1)
+                    array_field_element = array_field_elements[0]
+                    doc = doc[array_field_element]
+                    field_element = array_field_elements[1]
+                array_elements = field_element.split(']')
+                for array_element in array_elements:
+                    if not array_element:
+                        continue
+                    if array_element.startswith('['):
+                        array_element = array_element[1:]
+                    if array_element.isdigit() and isinstance(doc, list):
+                        doc = doc[int(array_element)]
+                    else:
+                        doc = doc[array_element]
+            else:
+                if field_element not in doc:
+                    doc[field_element] = {}
+                doc = doc[field_element]
         field_element = field_elements[0]
         if field_element in doc:
             output = doc[field_element]

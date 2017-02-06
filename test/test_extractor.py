@@ -482,7 +482,42 @@ class TestExtractor(unittest.TestCase):
         updated_doc = execute_processor_chain(updated_doc, [ep4])
         self.assertEqual(updated_doc['iiiii']['word'][0]['result']['value'],
                          "hellogoodbyehellogoodbyeworldcupworldcuphellogoodbyeworldcup")
+        ep5 = ExtractorProcessor().set_extractor_processor_inputs([[ep1,
+                                                                    ep2,
+                                                                    ep1,
+                                                                    ep2]])\
+                                  .set_output_fields('jjjjj.word')\
+                                  .set_extractor(e2).set_name("m")\
+                                  .set_flat_map_inputs(True)
+        updated_doc = execute_processor_chain(updated_doc, [ep5])
+        self.assertEqual(updated_doc['jjjjj']['word'][0]['result']['value'],
+                         "hellogoodbyeworldcuphellogoodbyeworldcup")
 
+
+    def test_jsonpath_bracket_notation_update_extractor(self):
+        doc = {"a": "hello", "b": [{"b1": [{"b11": "world"}, {"b12": "world"}]}, {"b2": "world"}]}
+        input_field = 'b.[0].[b1].[1].b12'
+        output_field = 'b.[0].[b1].[1].text'
+
+        e = SampleSingleRenamedFieldExtractor()
+        ep = ExtractorProcessor().set_input_fields(input_field)\
+                                 .set_output_field(output_field)\
+                                 .set_extractor(e)
+        updated_doc = ep.extract(doc)
+        self.assertEqual(updated_doc['b'][0]['b1'][1]['text'][0]['result']['value'], 'world')
+
+
+    def test_jsonpath_alternate_bracket_notation_update_extractor(self):
+        doc = {"a": "hello", "b": [{"b1": [{"b11": "world"}, {"b12": "world"}]}, {"b2": "world"}]}
+        input_field = 'b[0][b1][1].b12'
+        output_field = 'b[0][b1][1].text'
+
+        e = SampleSingleRenamedFieldExtractor()
+        ep = ExtractorProcessor().set_input_fields(input_field)\
+                                 .set_output_field(output_field)\
+                                 .set_extractor(e)
+        updated_doc = ep.extract(doc)
+        self.assertEqual(updated_doc['b'][0]['b1'][1]['text'][0]['result']['value'], 'world')
 
 
 if __name__ == '__main__':
