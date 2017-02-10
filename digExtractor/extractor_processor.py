@@ -162,6 +162,10 @@ class ExtractorProcessor(object):
         self.extractor = extractor
         return self
 
+    def get_extractor(self):
+        """Get the Extractor wrapped by ExtractorProcessor"""
+        return self.extractor
+
     def insert_extracted_value(self, doc, extracted_value,
                                output_field, original_output_field=None):
         """inserts the extracted value into doc at the field specified 
