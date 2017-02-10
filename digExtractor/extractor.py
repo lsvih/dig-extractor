@@ -8,6 +8,7 @@ class Extractor(object):
 
     def __init__(self):
         self.renamed_input_fields = list()
+        self.include_context = False
 
     def extract(self, doc):
         """This method accepts a document and computes a value based on
@@ -40,3 +41,20 @@ class Extractor(object):
             raise ValueError("renamed_input_fields must be a string or a list")
         self.renamed_input_fields = renamed_input_fields
         return self
+
+    def set_include_context(self, include_context):
+        self.include_context = include_context
+        return self
+
+    def get_include_context(self):
+        if not hasattr(self, "include_context"):
+            return False
+        return self.include_context
+
+    def wrap_value_with_context(self, value, field, start, end):
+        return {'value': value,
+                'context': {'field': field,
+                            'start': start,
+                            'end': end
+                            }
+                }
